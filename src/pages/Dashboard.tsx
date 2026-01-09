@@ -15,15 +15,19 @@ import {
   Search,
   X,
   RotateCcw,
-  SlidersHorizontal
+  SlidersHorizontal,
+  LayoutGrid,
+  Columns
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api-config";
 import { todoService } from "@/lib/todo-service";
 import type { TodoDto, TodoPaginated, CreateTodoRequest, UpdateTodoRequest, TodoStatus } from "@/lib/todo-service";
 import { TodoCard } from "@/components/todo-card";
 import { TodoForm } from "@/components/todo-form";
+import { KanbanBoard } from "@/components/kanban-board";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -33,6 +37,9 @@ export default function Dashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoDto | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // View states
+  const [viewMode, setViewMode] = useState<"grid" | "kanban">("grid");
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,9 +73,9 @@ export default function Dashboard() {
     try {
       const params: any = {
         page,
-        limit: 10,
+        limit: viewMode === "kanban" ? 100 : 10, // Fetch more for Kanban
         search: search || "",
-        status: status || ""
+        status: viewMode === "kanban" ? "" : (status || "")
       };
       const data = await todoService.getTodos(params);
       setTodosData(data);
@@ -77,7 +84,7 @@ export default function Dashboard() {
     } finally {
       setIsLoadingTodos(false);
     }
-  }, []);
+  }, [viewMode]);
 
   useEffect(() => {
     fetchUser();
@@ -113,6 +120,15 @@ export default function Dashboard() {
       } catch (err) {
         console.error("Delete failed", err);
       }
+    }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: TodoStatus) => {
+    try {
+      await todoService.updateTodo(id, { status: newStatus });
+      fetchTodos(currentPage, debouncedSearchQuery, statusFilter);
+    } catch (err) {
+      console.error("Status update failed", err);
     }
   };
 
@@ -156,12 +172,32 @@ export default function Dashboard() {
               <CardTitle className="text-2xl md:text-3xl">Welcome back, {user.first_name}!</CardTitle>
               <p className="opacity-80">Managing {todosData?.total || 0} tasks total</p>
             </div>
-            <Button
-              onClick={() => { setEditingTodo(undefined); setIsFormOpen(true); }}
-              className="bg-white text-indigo-600 hover:bg-white/90 font-bold"
-            >
-              <Plus className="w-4 h-4 mr-2" /> New Task
-            </Button>
+            <div className="flex gap-2">
+              <div className="bg-white/10 p-1 rounded-lg flex gap-1">
+                <Button
+                  size="sm"
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  onClick={() => setViewMode("grid")}
+                  className={cn(viewMode === "grid" ? "bg-white text-indigo-600" : "text-white hover:bg-white/20")}
+                >
+                  <LayoutGrid size={16} className="mr-2" /> Grid
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode === "kanban" ? "secondary" : "ghost"}
+                  onClick={() => setViewMode("kanban")}
+                  className={cn(viewMode === "kanban" ? "bg-white text-indigo-600" : "text-white hover:bg-white/20")}
+                >
+                  <Columns size={16} className="mr-2" /> Kanban
+                </Button>
+              </div>
+              <Button
+                onClick={() => { setEditingTodo(undefined); setIsFormOpen(true); }}
+                className="bg-white text-indigo-600 hover:bg-white/90 font-bold"
+              >
+                <Plus className="w-4 h-4 mr-2" /> New Task
+              </Button>
+            </div>
           </CardHeader>
         </Card>
 
@@ -192,23 +228,25 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="w-full md:w-48 space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  <SlidersHorizontal size={12} /> Status
-                </label>
-                <select
-                  className="w-full flex h-10 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  value={statusFilter}
-                  onChange={(e) => { setStatusFilter(e.target.value as TodoStatus | ""); setCurrentPage(1); }}
-                >
-                  <option value="">All Statuses</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="COMPLETED">Completed</option>
-                </select>
-              </div>
+              {viewMode === "grid" && (
+                <div className="w-full md:w-48 space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                    <SlidersHorizontal size={12} /> Status
+                  </label>
+                  <select
+                    className="w-full flex h-10 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    value={statusFilter}
+                    onChange={(e) => { setStatusFilter(e.target.value as TodoStatus | ""); setCurrentPage(1); }}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                </div>
+              )}
 
-              {(searchQuery || statusFilter) && (
+              {(searchQuery || (statusFilter && viewMode === "grid")) && (
                 <Button
                   variant="ghost"
                   onClick={clearFilters}
@@ -235,44 +273,51 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Todo List Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoadingTodos ? (
-            <div className="col-span-full flex flex-col items-center justify-center py-24 space-y-4">
-              <LoadingSpinner />
-              <p className="text-slate-400 text-sm animate-pulse">Fetching your tasks...</p>
+        {/* Content Area */}
+        {isLoadingTodos ? (
+          <div className="flex flex-col items-center justify-center py-24 space-y-4">
+            <LoadingSpinner />
+            <p className="text-slate-400 text-sm animate-pulse">Fetching your tasks...</p>
+          </div>
+        ) : todosData?.contents.length === 0 ? (
+          <div className="text-center py-24 bg-white rounded-xl border-2 border-dashed border-slate-200 shadow-sm">
+            <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ListTodo size={32} className="text-slate-300" />
             </div>
-          ) : todosData?.contents.length === 0 ? (
-            <div className="col-span-full text-center py-24 bg-white rounded-xl border-2 border-dashed border-slate-200 shadow-sm">
-              <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <ListTodo size={32} className="text-slate-300" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-800">No tasks found</h3>
-              <p className="text-slate-500 mb-6 max-w-xs mx-auto">
-                {searchQuery || statusFilter
-                  ? "We couldn't find any tasks matching your current filters."
-                  : "You haven't created any tasks yet. Start being productive today!"}
-              </p>
-              {searchQuery || statusFilter ? (
-                <Button variant="outline" onClick={clearFilters}>Clear all filters</Button>
-              ) : (
-                <Button className="bg-indigo-600" onClick={() => setIsFormOpen(true)}>Create your first task</Button>
-              )}
-            </div>
-          ) : (
-            todosData?.contents.map((todo) => (
+            <h3 className="text-lg font-semibold text-slate-800">No tasks found</h3>
+            <p className="text-slate-500 mb-6 max-w-xs mx-auto">
+              {searchQuery || statusFilter
+                ? "We couldn't find any tasks matching your current filters."
+                : "You haven't created any tasks yet. Start being productive today!"}
+            </p>
+            {searchQuery || statusFilter ? (
+              <Button variant="outline" onClick={clearFilters}>Clear all filters</Button>
+            ) : (
+              <Button className="bg-indigo-600" onClick={() => setIsFormOpen(true)}>Create your first task</Button>
+            )}
+          </div>
+        ) : viewMode === "grid" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {todosData?.contents.map((todo) => (
               <TodoCard
                 key={todo.id}
                 todo={todo}
                 onEdit={openEditForm}
                 onDelete={handleDelete}
               />
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <KanbanBoard
+            todos={todosData?.contents || []}
+            onStatusChange={handleStatusChange}
+            onEdit={openEditForm}
+            onDelete={handleDelete}
+          />
+        )}
 
-        {/* Enhanced Pagination Controls - Always show if not loading and tasks exist */}
-        {todosData && todosData.contents.length > 0 && (
+        {/* Enhanced Pagination Controls - Only in Grid Mode */}
+        {viewMode === "grid" && todosData && todosData.contents.length > 0 && (
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 py-8 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
             <p className="text-sm text-slate-500">
               Showing <span className="font-semibold text-slate-700">{todosData.contents.length}</span> of <span className="font-semibold text-slate-700">{todosData.total}</span> tasks
@@ -333,6 +378,7 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
 
       </main>
     </div>
