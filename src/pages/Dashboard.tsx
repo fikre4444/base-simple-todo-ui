@@ -20,6 +20,7 @@ import {
   Columns
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api-config";
+import { useNavigate } from "react-router-dom";
 import { todoService } from "@/lib/todo-service";
 import type { TodoDto, TodoPaginated, CreateTodoRequest, UpdateTodoRequest, TodoStatus } from "@/lib/todo-service";
 import { TodoCard } from "@/components/todo-card";
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
+  const navigate = useNavigate();
   const [todosData, setTodosData] = useState<TodoPaginated | null>(null);
   const [isLoadingTodos, setIsLoadingTodos] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -150,7 +152,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-50">
       <nav className="bg-white border-b px-8 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
         <h1 className="font-bold text-xl flex items-center gap-2 text-indigo-600">
-          <ShieldCheck /> SecureApp
+          <ShieldCheck /> Todo App
         </h1>
         <div className="flex items-center gap-4">
           <div className="hidden md:flex flex-col items-end">
@@ -304,6 +306,7 @@ export default function Dashboard() {
                 todo={todo}
                 onEdit={openEditForm}
                 onDelete={handleDelete}
+                onClick={() => navigate(`/todos/${todo.id}`)}
               />
             ))}
           </div>
@@ -313,6 +316,7 @@ export default function Dashboard() {
             onStatusChange={handleStatusChange}
             onEdit={openEditForm}
             onDelete={handleDelete}
+            onTodoClick={(todo) => navigate(`/todos/${todo.id}`)}
           />
         )}
 

@@ -2,6 +2,7 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/Login";
 import RegisterPage from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import TodoDetail from "./pages/TodoDetail";
 import VerifyOtpPage from "./pages/VerifyOtp";
 import { getAccessToken } from "./lib/auth-store";
 import type { JSX } from "react";
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/todos/:id" element={<PrivateRoute><TodoDetail /></PrivateRoute>} />
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
       <Toaster />

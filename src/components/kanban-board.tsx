@@ -15,19 +15,20 @@ import {
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useState } from "react";
-import type { TodoDto, TodoStatus } from "@/lib/todo-service";
+import type { TodoDto, TodoItemDto, TodoStatus } from "@/lib/todo-service";
 import { KanbanColumn } from "./kanban-column";
 import { TodoCard } from "./todo-card";
 
 interface KanbanBoardProps {
-    todos: TodoDto[];
+    todos: (TodoDto | TodoItemDto)[];
     onStatusChange: (id: string, newStatus: TodoStatus) => Promise<void>;
-    onEdit: (todo: TodoDto) => void;
+    onEdit: (todo: any) => void;
     onDelete: (id: string) => void;
+    onTodoClick?: (todo: any) => void;
 }
 
-export function KanbanBoard({ todos, onStatusChange, onEdit, onDelete }: KanbanBoardProps) {
-    const [activeTodo, setActiveTodo] = useState<TodoDto | null>(null);
+export function KanbanBoard({ todos, onStatusChange, onEdit, onDelete, onTodoClick }: KanbanBoardProps) {
+    const [activeTodo, setActiveTodo] = useState<TodoDto | TodoItemDto | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -104,6 +105,7 @@ export function KanbanBoard({ todos, onStatusChange, onEdit, onDelete }: KanbanB
                                         todo={todo}
                                         onEdit={onEdit}
                                         onDelete={onDelete}
+                                        onClick={onTodoClick}
                                         isDraggable={true}
                                     />
                                 ))}
